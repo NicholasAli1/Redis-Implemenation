@@ -1,9 +1,5 @@
 #include "../include/RedisDatabase.h"
 
-RedisDatabase::RedisDatabase() {
-
-}
-
 RedisDatabase &RedisDatabase::getInstance() {
     static RedisDatabase instance;
     return instance;

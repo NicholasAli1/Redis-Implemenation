@@ -6,7 +6,6 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <netinet/in.h>
-#include <vector>
 #include <thread>
 #include <cstring>
 #include <csignal>
@@ -73,7 +72,6 @@ void RedisServer::run() {
     }
 
     std::cout << "Redis Server Listening On Port " << port << "\n";
-    std::vector<std::thread> threads;
     RedisCommandHandler cmdHandler;
 
     while (running) {
@@ -82,32 +80,29 @@ void RedisServer::run() {
         if (client_socket < 0) {
             if (running) {
                 std::cerr << "Error Accepting Client Connection\n";
-                continue;
             }
-
-            threads.emplace_back([client_socket, &cmdHandler]() {
-                char buffer[1024];
-                while (true) {
-                    memset(buffer, 0, sizeof(buffer));
-                    int bytes = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
-                    if (bytes <= 0) break;
-                    std::string request(buffer, bytes);
-                    std::string response = cmdHandler.processCommand(request);
-                    send(client_socket, response.c_str(), response.size(), 0);
-                }
-                close(client_socket);
-            });
+            continue;
         }
 
-        for (auto& t : threads) {
-            if (t.joinable()) t.join();
-        }
-
-        // Before shutdown persist database
-        if (RedisDatabase::getInstance().dump("dump_my_rdb"))
-            std::cout << "Database dumped to dump.my_rdb\n";
-        else
-            std::cerr << "Error dumping database\n";
-
+        // Handle each client in its own thread (spawn only on successful accept)
+        std::thread clientThread([client_socket, &cmdHandler]() {
+            char buffer[1024];
+            while (true) {
+                memset(buffer, 0, sizeof(buffer));
+                int bytes = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+                if (bytes <= 0) break;
+                std::string request(buffer, bytes);
+                std::string response = cmdHandler.processCommand(request);
+                send(client_socket, response.c_str(), response.size(), 0);
+            }
+            close(client_socket);
+        });
+        clientThread.detach();
     }
+
+    // Before shutdown persist database
+    if (RedisDatabase::getInstance().dump("dump_my_rdb"))
+        std::cout << "Database dumped to dump.my_rdb\n";
+    else
+        std::cerr << "Error dumping database\n";
 }
