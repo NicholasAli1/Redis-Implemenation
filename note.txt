@@ -1,0 +1,65 @@
+#include <iostream>
+#include <cstring>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+
+int main() {
+    /*
+     * CREATING THE SOCKET
+     * Returns an integer file descriptor
+     * AF_INET = IPv4 address family -> Telling OS what type of addresses the socket will use ex: 192.168.1.1
+     * SOCK_STREAM = TCP
+     * 0 = Default protocol -> IPv4 Stream Based IPv4 + TCP
+     */
+    const int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0 ) {
+        perror("Socket Failed");
+        return 1;
+    }
+
+    // Prevents "Address Already In Use" Errors from occurring
+    const int opt = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    /*
+     * BINDING THE SOCKET
+     * We are telling which IP and port the server should live on
+     */
+    sockaddr_in address{};                          // C Struct with 16 bytes of memory called address. This represents the entire IP + Port
+    address.sin_family = AF_INET;                   // Telling us the struct will be IPv4
+    address.sin_addr.s_addr = htonl(0);             // Listen to all network interfaces (0.0.0.0). Accept connections from any interface.
+    address.sin_port = htons(8080);                 // Host to network setting port to 8080. htons converts numbers to network byte order (big endian). It’s required by TCP/IP protocols.
+
+    // Bind tells the OS to attach the socket to this IP and port. Checks to see if port 8080 already in use then registers the socket as the owner of that port then associates with the given IP and finally add it to the networking table
+    int rv = bind(server_fd, reinterpret_cast<const sockaddr *>(&address), sizeof(address));
+    if (rv) {
+        perror("Bind Failed");
+        return 1;
+    }
+
+    // Tells the OS that It's ready to accept connections. SOMAXCONN is just a placeholder for maximum queue size.
+    rv = listen(server_fd, SOMAXCONN);
+    if (rv) {
+        perror("Listen Failed");
+        return 1;
+    }
+
+    // Accept Loop
+    while (true) {
+        sockaddr_in client_addr{};                      // Struct to store clients IP/port
+        socklen_t client_len = sizeof(client_addr);     // Length of that struct
+
+        // New Socket for this client
+        int conn_fd = accept(server_fd, reinterpret_cast<sockaddr *>(&client_addr), &client_len);
+        if (conn_fd < 0) {
+            perror("Accept Failed");
+            continue;
+        }
+        close(conn_fd);
+    }
+
+    close(server_fd);
+
+    return 0;
+}
