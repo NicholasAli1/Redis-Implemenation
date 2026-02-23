@@ -3,11 +3,30 @@
 #include <mutex>
 #include <unordered_map>
 #include <vector>
+#include <chrono>
 
 class RedisDatabase {
 public:
     // Get Singleton instance
     static RedisDatabase& getInstance();
+
+    // Common Commands
+    bool flushAll();
+
+    // Key/Value Ops
+    void set(const std::string& key, const std::string& value);
+    bool get(const std::string& key, const std::string& value);
+    std::vector<std::string> keys;
+    std::string type(const std::string& key);
+    bool del(const std::string& key);
+    bool expire(const std::string& key, const std::string& seconds);
+    bool rename(const std::string& oldKey, const std::string& newKey);
+    // TODO: RENAME
+
+    // TODO: LIST OPS
+
+    // TODO: HASH OPS
+
 
     // Persistence: Dump / Load the database from file.
     bool dump(const std::string& filename);
@@ -24,5 +43,9 @@ private:
     std::unordered_map<std::string, std::string> kv_store;
     std::unordered_map<std::string, std::vector<std::string>> list_store;
     std::unordered_map<std::string, std::unordered_map<std::string, std::string>> hash_store;
+
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> expiry_map;
+
+
 
 };
