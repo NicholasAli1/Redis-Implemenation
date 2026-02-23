@@ -1,5 +1,8 @@
 #pragma once
 #include <string>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
 
 class RedisDatabase {
 public:
@@ -16,5 +19,10 @@ private:
     ~RedisDatabase() = default;
     RedisDatabase(const RedisDatabase&) = delete;
     RedisDatabase& operator=(const RedisDatabase&) = delete;
+
+    std::mutex db_mutex;
+    std::unordered_map<std::string, std::string> kv_store;
+    std::unordered_map<std::string, std::vector<std::string>> list_store;
+    std::unordered_map<std::string, std::unordered_map<std::string, std::string>> hash_store;
 
 };
